@@ -3,10 +3,12 @@ import os
 import requests
 import shutil
 import sys
+import datetime
 
 USER_TOKEN = os.getenv('INSTAGRAM_TOKEN', None)
 FEED_URI = 'https://api.instagram.com/v1/users/self/media/recent/'
 SAVE_DIR = 'backup'
+SAVE_JSON_DATA = False
 
 
 def download_file(url, filename):
@@ -17,30 +19,30 @@ def download_file(url, filename):
             shutil.copyfileobj(response.raw, new_file)
         del response
 
-
 def save_image(image):
-    image_id = image['link'].rsplit('/')[4]
     try:
         image_name = image['caption']['text']
     except TypeError:
         image_name = ''
 
-    print 'Fetching [%s] %s' % (image_id, image_name)
-
+    print 'Fetching %s' % (image_name)
     image_url = image['images']['standard_resolution']['url']
-    image_filename = '%s/%s.jpg' % (SAVE_DIR, image_id)
-    download_file(image_url, image_filename)
+
+    formatted_date = datetime.datetime.fromtimestamp(int(image['created_time'])).strftime('%m-%d-%Y')
+    image_name = '%s %s' % (formatted_date, image_name)
+    image_path = '%s/%s.jpg' % (SAVE_DIR, image_name)
+    download_file(image_url, image_path)
 
     if image['type'] == 'video':
         video_url = image['videos']['standard_resolution']['url']
-        video_filename = '%s/%s.mp4' % (SAVE_DIR, image_id)
+        video_filename = '%s/%s.mp4' % (SAVE_DIR, image_name)
         download_file(video_url, video_filename)
 
     # save the data as JSON
-    data_filename = '%s/%s.json' % (SAVE_DIR, image_id)
-    with open(data_filename, 'w') as data_file:
-        json.dump(image, data_file, sort_keys=True, indent=4)
-
+    if SAVE_JSON_DATA == True:
+        data_filename = '%s/%s.json' % (SAVE_DIR, image_name)
+        with open(data_filename, 'w') as data_file:
+            json.dump(image, data_file, sort_keys=True, indent=4)
 
 if USER_TOKEN is None:
     sys.exit("Requires INSTAGRAM_USER_TOKEN environment variable.")
